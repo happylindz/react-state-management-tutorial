@@ -21,6 +21,9 @@ const CounterStore = {
             events[i]()
         }
     },
+    getDataKeys: () => {
+        return Object.keys(counterData)
+    },
     getCounterValue: caption => {
         return counterData[caption]
     },
@@ -28,7 +31,6 @@ const CounterStore = {
         return Object.keys(counterData)
     },
 }
-
 
 
 export default CounterStore

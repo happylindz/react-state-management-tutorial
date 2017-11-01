@@ -1,4 +1,4 @@
-import { counterData } from '../modal'
+import { counterData } from '../model'
 
 const events = []
 
@@ -15,6 +15,9 @@ const controller = {
         counterData[caption] = value
         controller.emitChange()
     },
+    getDataKeys: () => {
+        return Object.keys(counterData)
+    },
     getCounterValue: caption => {
         return counterData[caption]
     },
@@ -29,4 +32,4 @@ const controller = {
     },
 }
 
-export default controller;
+export default controller
