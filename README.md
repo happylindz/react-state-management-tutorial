@@ -57,7 +57,7 @@ npm i
 
 ```javascript
 export default class ControlPanel extends Component {
-	//...
+	 //...
     render() {
         return (
             <div>
@@ -175,11 +175,11 @@ export default controller
 ```javascript
 import controller from '../controller'
 export default class Counter extends Component {
-	//...
-	onHandleClickChange = (isIncrement) => {
-        const { caption } = this.props
-        let value = isIncrement ? this.state.value + 1 : this.state.value - 1
-        controller.setCounterValue(caption, value)
+    //...
+    onHandleClickChange = (isIncrement) => {
+	    const { caption } = this.props
+	    let value = isIncrement ? this.state.value + 1 : this.state.value - 1
+	    controller.setCounterValue(caption, value)
     }
 
     onCounterUpdate = () => {
@@ -564,7 +564,7 @@ import store from '../store'
 import actionCreator from '../actionCreator'
 
 export default class Counter extends Component {
-	// ...
+	 // ...
     getOwnState() {
         return {
             value: store.getState()[this.props.caption]
@@ -589,7 +589,7 @@ export default class Counter extends Component {
         store.subscribe(this.onCounterUpdate)
     }
 
-	// ...
+    // ...
 }
 ```
 
@@ -642,9 +642,9 @@ const logger = createLogger();
 const initValue = {}
 
 const store = createStore(
-  reducer,
-  applyMiddleware(logger),
-  initValue,
+    reducer,
+    applyMiddleware(logger),
+    initValue,
 );
 ```
 
@@ -667,17 +667,17 @@ const store = createStore(
 ```javascript
 // 错误的，无意间丢失了祖先组件传递的 context 变量
 constructor(props) {
-   super(props)
+    super(props)
 }
 
 // 正确的
 constructor() {
-   super(...arguments)
+    super(...arguments)
 }
 
 // 或者 箭头函数无 arguments 参数
 constructor = (...args) => {
-   super(...args);
+    super(...args);
 }
 ```
 
@@ -689,23 +689,23 @@ import PropTypes from 'prop-types'
 
 class Provider extends Component {
 
-  getChildContext() {
-    return {
-      store: this.props.store
+    getChildContext() {
+        return {
+            store: this.props.store
+        }
     }
-  }
 
-  render() {
-    return this.props.children
-  }
+    render() {
+        return this.props.children
+    }
 
 }
 
 Provider.propTypes = {
-  store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired
 }
 Provider.childContextTypes = {
-  store: PropTypes.object
+    store: PropTypes.object
 }
 
 export default Provider
@@ -778,7 +778,7 @@ const Counter = (props) => {
 ```javascript
 class CounterContainer extends Component {
 
-	// ...
+	 // ...
     onCounterUpdate = () => {
         this.setState(this.getOwnState())
     }
