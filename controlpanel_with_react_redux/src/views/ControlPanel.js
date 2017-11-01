@@ -1,16 +1,27 @@
 import React, { Component } from 'react'
 import Counter from './Counter'
 import Summary from './Summary'
+import { connect } from 'react-redux'
 
-export default class ControlPanel extends Component {
+
+
+class ControlPanel extends Component {
     render() {
         return (
             <div>
-                <Counter caption="First" />
-                <Counter caption="Second" />
-                <Counter caption="Third" />
+                {
+                    this.props.captions.map(caption => (<Counter caption={ caption } key={ caption } />))
+                }
                 <Summary />
             </div>
         )
     }
 }
+
+const mapStateToProps = (state, ownProps) => {
+    return {
+        captions: Object.keys(state)
+    }
+}
+
+export default connect(mapStateToProps)(ControlPanel)

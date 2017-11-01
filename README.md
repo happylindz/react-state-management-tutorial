@@ -2,9 +2,13 @@
 
 [原文地址](https://github.com/happylindz/react-state-management-tutorial)
 
+请关注我的知乎专栏：[敲代码，学编程](https://zhuanlan.zhihu.com/learncoding)
+
+我的博客：[Lindz's blog](https://github.com/happylindz/blog)
+
 > 阅读本文之前，希望你掌握 React，ES6 等相关知识
 
-本文所有代码都可以从 github 仓库下载，读者可以:
+如果觉得本文有帮助，可以点 star 鼓励下，本文所有代码都可以从 github 仓库下载，读者可以按照下述打开:
 
 ```
 git clone https://github.com/happylindz/react-state-management-tutorial.git
@@ -25,6 +29,8 @@ React 是 Facebook 提出的前端框架，作为 View 层很好地解决了视�
 ![](./images/1.gif)
 
 从图中可以看出，该例子包含三个计数器和一个总计数器，似乎很轻松，计数器为一个组件，总计数器为另一个组件，然后用一个容器包含三个计数器组件和一个总计数器组件即可。
+
+有些经验是从看《深入浅出 React 和 Redux》这本书而来的，作者十分用心，写得挺不错的，有兴趣的可以买来看看：[深入浅出React和Redux](https://book.douban.com/subject/27033213/)
 
 ## 一、父子组件间通信
 
@@ -661,17 +667,17 @@ const store = createStore(
 ```javascript
 // 错误的，无意间丢失了祖先组件传递的 context 变量
 constructor(props) {
-	super(props)
+   super(props)
 }
 
 // 正确的
 constructor() {
-	super(...arguments)
+   super(...arguments)
 }
 
 // 或者 箭头函数无 arguments 参数
 constructor = (...args) => {
-	super(...args);
+   super(...args);
 }
 ```
 
@@ -806,4 +812,296 @@ npm start
 
 ## 最终的 Redux 架构
 
+我们发现容器的组件的逻辑其实都是一样的，无非就是两种，触发 action 的函数，以及全局变量映射到局部变量的 state，所以如果我们将这部分抽象出来的话那我们以后不是只要写傻瓜组件就行，而不用每次都还要重复写类似的容器组件。
 
+```
+cd controlpanel_with_redux_final/
+npm i 
+npm start
+```
+
+我们新增加一个 connect 目录，用于构件一个统一通用的容器组件，这里需要用到一些高阶组件的知识：高阶组件即函数接受一个 React 组件，返回一个增强后的 React 组件。
+
+```javascript
+// ...
+export const connect = (mapStateToProps, mapDispatchToProps) => {
+    // ...
+    return (WrappedComponent) => {
+        const HOCComponent = class extends Component {
+            constructor() {
+                super(...arguments)
+                this.state = {};
+            }
+            onChange = () => {
+                this.setState({})
+            }
+            componentDidMount() {
+                this.context.store.subscribe(this.onChange)
+            }
+            render() {
+                const store = this.context.store
+                const stateToProps = mapStateToProps(store.getState(), this.props)
+                const newProps = {
+                    ...this.props,
+                    ...stateToProps,
+                    ...mapDispatchToProps(store.dispatch, this.props)
+                }
+                return <WrappedComponent  { ...newProps } />
+            }
+        }
+        HOCComponent.contextTypes = {
+            store: PropTypes.object
+        }
+        return HOCComponent;
+    }
+}
+```
+
+WrappedComponent 即传递的进来的傻瓜组件，connect 接受两个参数：状态映射以及函数映射。代码的核心在于 store.subscribe 了 onChange 函数，通过 ```setState({})``` 从而触发组件重新执行 render 函数进行 vdom 的比较，这时候 mapStateToProps 函数执行后返回的便是最新全局变量返回的局部映射，我们就将新的值通过 props 的方式传递给傻瓜组件，从而引起重新渲染。
+
+```javascript
+const Counter = ({ caption, value, increment, decrement }) => {
+    console.log(caption)
+    return (
+        <div>
+            <button style={ buttonStyle } onClick={ decrement }>-</button>
+            <button style={ buttonStyle } onClick={ increment }>+</button>
+             { caption } Count: { value }
+        </div>
+    )
+}
+
+const mapStateToProps = (state, ownProps) => {
+    return {    
+        caption: ownProps.caption,
+        value: state[ownProps.caption]
+    }
+}
+
+const mapDispatchToProps = (dispatch, ownProps) => {
+    return {
+        increment: () => {
+            dispatch(actionCreator.increment(ownProps.caption))
+        },
+        decrement: () => {
+            dispatch(actionCreator.decrement(ownProps.caption))
+        }
+    }
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Counter);
+```
+
+以后我们的视图只需要写好纯渲染组件，以及 mapStateToProps 以及 mapDispatchToProps 对应的函数即可。值得注意的是：mapStateToProps 传入的参数分别为当前的 state 和 props，而 mapDispatchToProps 传递的是 dispatch 和 ownProps 对象。
+
+这样还不算完，我们需要做一些性能优化，比如说：我们增加了 First 计时器的值，按理说只有 First 这个组件进行重新 render 了，而现在由于三个 setState({}) 都会触发高阶组件重新进行 render，有点浪费性能，所以这时候 ```shouldComponentUpdate``` 这个钩子函数派上用场，它是通过判断现在值得跟之前的是否有变化，如果没有变化，返回 false 后就不会执行后面 render 函数，如果有变化，则交给后面的 render 函数进行 vdom 比较了。
+
+这里我么通过创建一个全局的 Map 来存储之前的值。
+
+```javascript
+const map = new WeakMap()
+
+export const connect = (mapStateToProps, mapDispatchToProps) => {
+    return (WrappedComponent) => {
+        const HOCComponent = class extends Component {
+            shouldComponentUpdate(nextProps, nextState) {
+                return map.get(this).value !== mapStateToProps(this.context.store.getState(), nextProps).value
+            }
+            render() {
+                const store = this.context.store
+                const stateToProps = mapStateToProps(store.getState(), this.props)
+                const newProps = {
+                    ...this.props,
+                    ...stateToProps,
+                    ...mapDispatchToProps(store.dispatch, this.props)
+                }
+                map.set(this, stateToProps)
+                return <WrappedComponent  { ...newProps } />
+            }
+        }
+    }
+}
+```
+
+每次 render 时候就更新 Map 中对应该组件的值，然后下次执行更新的时候判断新值中的value 值是否跟之前存储的一样，如果一样说明没有发生变化，则返回 false 不再继续，比如更新 First 计数器，那么只有 First 的 value 更新了，其他的计数器值并没有变化，那么只有 First 组件执行了 render 函数，其他的计数器因为 shouldComponentUpdate 返回了 false 则不再执行 render 函数。
+
+## 结合 React-Redux 
+
+说了这么多，只是为了阐述一下它的演变的原理。这些其实在 react-redux 包里已经实现好了，我们不用每次在新的项目里再重新写一遍 Provider 或者 connect 这样的代码。
+
+```
+cd controlpanel_with_react_redux/
+npm i 
+npm start
+```
+
+区别在于：Provider、connect 都是由 react-redux 提供的
+
+```javascript
+import { Provider } from 'react-redux'
+// ...
+render(
+    <Provider store={ store } >
+        <ControlPanel />
+    </Provider>,
+    document.getElementById('root')
+)
+```
+
+```javascript
+import React from 'react'
+import { connect } from 'react-redux'
+
+// ...
+
+export default connect(mapStateToProps)(Summary)
+```
+
+其它基本就一模一样了，自此 Redux 结合 React-Redux 的思想我已经介绍完了。
+
+其实如果你一开始就使用 Redux + React-Redux 来编写代码的话肯定会觉得写起来很蹩脚，会很困惑为啥要这么设计，当你不明白其底层的含义的话就相当于是开始强行使用的话可能会适应的比较慢。希望读者在看完前面叙述的内容后能够对 Redux + React-Redux 存在的意义能够有一定的理解。
+
+## Mobx 架构
+
+相比于 Redux 体系来说，Mobx 架构就比较容易理解和上手，如果大家使用过 Vue 的话相信对其双向绑定 MVVM 的思想并不陌生，React + Mobx 相当于是 Vue 全局作用域下的双向绑定，而 Vue 的状态管理框架 Vuex 却是借鉴了 Flux 架构，连尤大都说，似乎有点你中有我，我中有你的关系。
+
+在 React 中，我们通过 setState 来更新数据，从而触发视图的更新，严格遵循着数据单向流的过程，但是如果你使用 Mobx 而不是用 setState 的话就可以将其变量双向绑定，就如官网上的例子：
+
+```javascript
+import {observer} from "mobx-react"
+import {observable} from "mobx"
+
+@observer 
+class Timer extends React.Component {
+    @observable secondsPassed = 0
+
+    componentWillMount() {
+        setInterval(() => {
+            this.secondsPassed++
+        }, 1000)
+    }
+
+    render() {
+        return (<span>Seconds passed: { this.secondsPassed } </span> )
+    }
+})
+
+React.render(<Timer />, document.body)
+```
+
+单向数据流或者双向数据流的好坏就见仁见智了，对双向数据绑定感兴趣的话可以看这篇文章:[剖析Vue实现原理 - 如何实现双向绑定mvvm](https://github.com/DMQ/mvvm)
+
+下面我们重新修改之前的计时器的例子，结合 Mobx 架构来看看会有什么样的变化？
+
+```
+cd controlpanel_with_mobx/
+npm i 
+npm start
+```
+ 
+先来看一下目录结构:
+
+```
+.
+├── index.js
+├── store
+│   ├── CounterStore
+│   │   └── index.js
+│   └── index.js
+└── views
+    ├── ControlPanel.js
+    ├── Counter.js
+    └── Summary.js
+```
+
+是不是发现简洁了许多，显然因为数据双向绑定了，当数据更新后不用写一大堆回调函数来更新视图了。
+
+```javascript
+import { observable, computed, action } from "mobx";
+
+class CounterStore {
+    @observable counters = {
+        'First': 0,
+        'Second': 10,
+        'Third': 20,
+    }
+    @computed get totalValue() {
+        let total = 0
+        for(let key in this.counters) {
+            if(this.counters.hasOwnProperty(key)) {
+                total += this.counters[key]                
+            }
+        }
+        return total
+    }
+    @computed get dataKeys() {
+        return Object.keys(this.counters)
+    }
+    @action changeCounter = (caption, type) => {
+
+        if(type === 'increment') {
+            this.counters[caption]++            
+        }else {
+            this.counters[caption]--
+        }
+    }
+}
+const counterStore = new CounterStore()
+
+export default counterStore
+export { counterStore }
+```
+
+介绍几个概念：
+
+1. observable：使数据变为可观测的，响应式的
+2. computed: 计算属性，当依赖的数据发生变化时候，自动触发更新视图
+3. action：一个函数，用于触发数据的更新，这里使用箭头函数可以静态地绑定 this，避免失去上下文。
+
+一样的 store 需要从根组件向下注入：
+
+```javascript
+import React from 'react'
+import { render } from 'react-dom'
+import ControlPanel from './views/ControlPanel'
+import * as stores from './store'
+import { Provider } from 'mobx-react'
+
+render(
+    <Provider { ...stores }> 
+        <ControlPanel />
+    </Provider>,
+    document.getElementById('root')
+)
+```
+
+store 可以不只有一个，不同的 store 的数据以及对应处理数据的不同逻辑，当组件需要用某个 store 的时候需要通过 inject 注入。
+
+```javascript
+import React, { Component } from 'react'
+import { observer, inject } from "mobx-react";
+
+@inject('counterStore')
+@observer
+class Counter extends Component {
+
+    render() {
+        const store = this.props.counterStore
+        const { caption } = this.props
+        return (
+            <div>
+                <input style={ buttonStyle } type='button' value='-' onClick={ store.changeCounter.bind(this, caption, 'decrement') } />
+                <input style={ buttonStyle }  type='button' value='+' onClick={ store.changeCounter.bind(this, caption, 'increment') } />
+                <span> { caption } Count: { store.counters[caption] } </span>
+            </div>
+        )
+    }
+}
+export default Counter
+```
+
+observer 代码这个类成为观察者，inject('counterStore') 注入 counterStore，可以通过 this.props.counterStore 来访问。是不是十分简单，使用起来也比较容易上手，相信使用过 Vue 写代码的人一定不会感到陌生。
+
+值得一提的是 @ 这个代表 ES7 的装饰器，如果对其不熟悉的可以看这篇文章：[ES7 Decorator 装饰者模式](http://taobaofed.org/blog/2015/11/16/es7-decorator/)
+
+自此 React 状态管理方案就介绍到这里，我们从传统的父子间通信，MVC 再到 Flux，Redux，最后止于 Mobx，希望本文能够对你有所帮助，觉得有用的话请点个 star 鼓励下，谢谢！

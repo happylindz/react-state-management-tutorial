@@ -15,6 +15,9 @@ class CounterStore {
         }
         return total
     }
+    @computed get dataKeys() {
+        return Object.keys(this.counters)
+    }
     @action changeCounter = (caption, type) => {
 
         if(type === 'increment') {
