@@ -238,7 +238,7 @@ export default class Counter extends Component {
 
 当出现多模型多视图，在 MVC 中让 View 和 Model 直接通信简直就是灾难。
 
-## Flux 架构
+## 三、Flux 架构
 
 为此，Facebook 提出了 Flux 架构，提供更加严格的数据流控制，说白了就是让你无法直接修改数据，为所欲为了。
 
@@ -459,7 +459,7 @@ CounterStore.dispatchToken = dispatcher.register((action) => {
 
 当 dispatch 获取到 action 和 state 之后，通过层层中间件处理，最后生成新的状态，可以将 logger 日志功能看成一个中间件。
 
-## 基本 Redux 架构
+## 四、基本 Redux 架构
 
 基于上面存在的问题，Flux 基本原则是 “单向数据流”，Redux 可以理解为 Flux 的一种实现，其实有很多种 Flux 实现的框架，如：Reflux 等，但是 Reudx 有很多其他框架无法比拟的优势。
 
@@ -656,7 +656,7 @@ const store = createStore(
 
 遵循中间件先进后出的原则，一一作用于 传入的 action 和 state 中，其实 reducer 函数可以看做是一个特殊的中间件，被 applyMiddleware 包裹在中间。通过中间件或者 store enhancer 可以定制我们的 store 功能，感兴趣的同学可以去网上学习，这里就不再展开。
 
-## 改进后的 Redux 架构
+## 五、改进后的 Redux 架构
 
 前面 Redux 方案解决了 Flux 所遗留下来的一些问题，但是仅仅是这样的话它也存在一些问题，我们可以试着去改变它。
 
@@ -809,7 +809,7 @@ npm i
 npm start
 ```
 
-## 最终的 Redux 架构
+## 六、最终的 Redux 架构
 
 我们发现容器的组件的逻辑其实都是一样的，无非就是两种，触发 action 的函数，以及全局变量映射到局部变量的 state，所以如果我们将这部分抽象出来的话那我们以后不是只要写傻瓜组件就行，而不用每次都还要重复写类似的容器组件。
 
@@ -924,7 +924,7 @@ export const connect = (mapStateToProps, mapDispatchToProps) => {
 
 每次 render 时候就更新 Map 中对应该组件的值，然后下次执行更新的时候判断新值中的value 值是否跟之前存储的一样，如果一样说明没有发生变化，则返回 false 不再继续，比如更新 First 计数器，那么只有 First 的 value 更新了，其他的计数器值并没有变化，那么只有 First 组件执行了 render 函数，其他的计数器因为 shouldComponentUpdate 返回了 false 则不再执行 render 函数。
 
-## 结合 React-Redux 
+## 七、结合 React-Redux 
 
 说了这么多，只是为了阐述一下它的演变的原理。这些其实在 react-redux 包里已经实现好了，我们不用每次在新的项目里再重新写一遍 Provider 或者 connect 这样的代码。
 
@@ -960,7 +960,7 @@ export default connect(mapStateToProps)(Summary)
 
 其实如果你一开始就使用 Redux + React-Redux 来编写代码的话肯定会觉得写起来很蹩脚，会很困惑为啥要这么设计，当你不明白其底层的含义的话就相当于是开始强行使用的话可能会适应的比较慢。希望读者在看完前面叙述的内容后能够对 Redux + React-Redux 存在的意义能够有一定的理解。
 
-## Mobx 架构
+## 八、Mobx 架构
 
 相比于 Redux 体系来说，Mobx 架构就比较容易理解和上手，如果大家使用过 Vue 的话相信对其双向绑定 MVVM 的思想并不陌生，React + Mobx 相当于是 Vue 全局作用域下的双向绑定，而 Vue 的状态管理框架 Vuex 却是借鉴了 Flux 架构，连尤大都说，似乎有点你中有我，我中有你的关系。
 
