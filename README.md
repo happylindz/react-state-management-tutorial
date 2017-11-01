@@ -73,8 +73,8 @@ export default class ControlPanel extends Component {
 ```javascript
 export default class ControlPanel extends Component {
     constructor(props) {
-		super(props)
-		this.onCounterUpdate = this.onCounterUpdate.bind(this)
+    	super(props)
+    	this.onCounterUpdate = this.onCounterUpdate.bind(this)
     }
 }
 ```
@@ -453,8 +453,357 @@ CounterStore.dispatchToken = dispatcher.register((action) => {
 
 当 dispatch 获取到 action 和 state 之后，通过层层中间件处理，最后生成新的状态，可以将 logger 日志功能看成一个中间件。
 
-## Redux 架构
+## 基本 Redux 架构
 
+基于上面存在的问题，Flux 基本原则是 “单向数据流”，Redux 可以理解为 Flux 的一种实现，其实有很多种 Flux 实现的框架，如：Reflux 等，但是 Reudx 有很多其他框架无法比拟的优势。
 
+Redux 在单向数据流的基础上强调三个基础原理：
+
+* 唯一数据源：即应用的状态数据应该只存在唯一一个 Store 上。整个应用只保持一个 Store，所有组件的数据源就是这个 Store 上的状态，每个组件往往只是用树形对象上的一部分数据。
+* 保持状态只读。
+* 数据改变只能通过纯函数完成。
+
+为此，我们可以开始编写我们先编写一个基础的 Redux 实例，然后再想办法去改进它。
+
+```
+cd controlpanel_with_redux_basic/
+npm i 
+npm start
+```
+
+重新来看目录结构，会发现，少了 dispatch，多了 reducers
+
+```
+├── actionCreator
+│   └── index.js
+├── actionTypes
+│   └── index.js
+├── index.js
+├── reducers
+│   └── index.js
+├── store
+│   └── index.js
+└── views
+    ├── ControlPanel.js
+    ├── Counter.js
+    └── Summary.js
+```
+
+reducers 即处理 action 的纯函数，通过传入 action 对象以及旧的 state，返回新的 state。
+
+```javascript
+import * as actionTypes from '../actionTypes'
+
+export default (state, action) => {
+    const { counterCaption } = action
+    switch(action.type) {
+        case actionTypes.INCREMENT: 
+            return { ...state, [counterCaption]: state[counterCaption] + 1 }
+        case actionTypes.DECREMENT:
+            return { ...state, [counterCaption]: state[counterCaption] - 1 }
+        default:
+            return { ...state }
+    }
+}
+```
+
+actionCreator 也有所变化，原本包含 dispatch 逻辑，现在只是简单返回一个 action js 对象。
+
+```javascript
+import * as actionTypes from '../actionTypes'
+
+export default {
+    increment: (caption) => {
+        return {
+            type: actionTypes.INCREMENT,
+            counterCaption: caption,
+        }
+    },
+    decrement: (caption) => {
+        return {
+            type: actionTypes.DECREMENT,
+            counterCaption: caption,
+        }
+    },
+}
+```
+
+store 的逻辑就很简单，只要传入初始化的数据和处理 Action 的纯函数即可。
+
+```javascript
+import { createStore } from 'redux'
+import reducer from '../reducers'
+
+const initValues = {
+    'First': 0,
+    'Second': 10,
+    'Third': 20
+}
+
+const store = createStore(reducer, initValues)
+
+export default store
+```
+
+在视图组件中，
+
+1. 如果需要用到数据，则调用 store.getState 函数即可获取到当前数据
+2. 如果需要修改数据，如添加或者减少数值，则仅需要调用 store.dispatch 分发 action，而不用像原来需要使用一整个 Dispatcher 对象
+3. 一样的，在组件加载完成后，通过 store.subscribe 去订阅数据变化的回调函数，一旦数据发生了变化，则触发回调同步刷新局部变量
+
+所以我们的视图就变成了这样：
+
+```javascript
+import store from '../store'
+import actionCreator from '../actionCreator'
+
+export default class Counter extends Component {
+	// ...
+    getOwnState() {
+        return {
+            value: store.getState()[this.props.caption]
+        }
+    }
+    onHandleClickChange = (isIncrement) => {
+        const { caption } = this.props
+        if(isIncrement) {
+            store.dispatch(actionCreator.increment(caption))
+        }else {
+            store.dispatch(actionCreator.decrement(caption))
+        }
+    }
+
+    onCounterUpdate = () => {
+        this.setState({
+            ...this.getOwnState()
+        })
+    }
+    
+    componentDidMount() {
+        store.subscribe(this.onCounterUpdate)
+    }
+
+	// ...
+}
+```
+
+整个流程看来就像是：点击了增加按钮，通过 actionCreator.increment 返回一个 JS 对象，将它传递给 store.dispatch 分发出去，这时候交给 store 的 reducers 纯函数处理，通过 store.getState() 获取当前状态，以及 action 对象，返回一个新的 state，之后再调用 subscribe 的回调函数，将 store 上的变量映射同步更新到局部变量，局部变量通过 setState 即可更新视图。
+
+Redux 解决了 Flux 所遗留下来的问题：
+
+首先，数据和处理数据的逻辑(reducer)分离了，这样可以在做一些热替换的时候可以保留原本的状态不受影响。
+
+其次，reducer 处理后返回一个新的 state，这样就有机会保存每次的状态，你可以跳回之前的某个状态，方便开发调试工具。
+
+另外如果有多个 reducer 的话，每个 reducer 这变成了一个 store 上的局部变量，就像这样。
+
+```javascript
+import { createStore, combineReducers } from 'redux'
+import reducerA from './reducers/reducerA'
+import reducerB from './reducers/reducerB'
+import reducerC from './reducers/reducerC'
+
+const initValues = {
+    'a': 0,
+    'b': 10,
+    'c': 20
+}
+
+const reducers = combineReducers({
+    'a': reducerA,
+    'b': reducerB,
+    'c': reducerC,
+})
+
+const store = createStore(reducers, initValues)
+export default store
+```
+
+值得注意的是：
+
+1. reducerA 影响的 state 只是 store 上的一个局部状态，它并无法影响到 store 对象 b 或者 c 上的数据。
+2. 当 store.dispatch 传递 action 对象过来后，store 无法智能地选择某些相关的 reducer 函数去执行，它只会傻瓜似地将所有 reducer 函数全部执行一遍，重新组装成一个完成的 store，哪怕只是修改一个简单的地方，但也要触发十几个 reducer 函数去做无用功。
+3. 所以这时候 actionTypes 就起到作用了,因为 actionType 只是设置成字符串，如果字符串设置的过于简单就有可能导致重复，导致原本不相干的 reducer 处理了 action，这样应用就会陷入混乱当中，所以建议使用 Symbol 类型或者将字符串设置成比较具体复杂些的，比如想这样 ```export const increment = 'counter/increment'``` 添加不同的前缀来区分。
+4. 同样的 store.subscribe 函数也不是智能地区分哪些数据变化，而是通通执行一遍返回新的值，即使大部分数据都没有发生变化。
+
+另外中间件或者 store 增强器可以在创建 store 的时候进行传入，比如之前说的 logger 日志的功能。
+
+```javascript
+import { applyMiddleware, createStore } from 'redux';
+import createLogger from 'redux-logger';
+const logger = createLogger();
+
+const initValue = {}
+
+const store = createStore(
+  reducer,
+  applyMiddleware(logger),
+  initValue,
+);
+```
+
+默认它会判断第二个参数是不是函数，如果是函数，则当初是中间件集合进行传递，如果不是函数则当做是初始数据进行传递。
+
+整个过程就像前面那幅图：
+
+![](./images/9.png)
+
+遵循中间件先进后出的原则，一一作用于 传入的 action 和 state 中，其实 reducer 函数可以看做是一个特殊的中间件，被 applyMiddleware 包裹在中间。通过中间件或者 store enhancer 可以定制我们的 store 功能，感兴趣的同学可以去网上学习，这里就不再展开。
+
+## 改进后的 Redux 架构
+
+前面 Redux 方案解决了 Flux 所遗留下来的一些问题，但是仅仅是这样的话它也存在一些问题，我们可以试着去改变它。
+
+首先，这个 store 在每个需要数据的页面都需要引入，比如 Counter 和 Summary 组件，这样则显得不够优雅，如果可以将 store 变量挂载在 this 变量上，如果有需要的时候直接访问 this.xxx.store 即可访问到，那就更好了。
+
+这里我们就需要提到一个 context，它可以帮助我们传递全局变量，比如在父组件里面的 this.context 挂载 store 变量，则稍微设置下即可在孙子组件里通过 this.context.store 获取到 store 变量，一般它是通过创建时候通过构造函数的第二参数传入的，如:```constructor(props, context)```，所以我们在写法上应该变成：
+
+```javascript
+// 错误的，无意间丢失了祖先组件传递的 context 变量
+constructor(props) {
+	super(props)
+}
+
+// 正确的
+constructor() {
+	super(...arguments)
+}
+
+// 或者 箭头函数无 arguments 参数
+constructor = (...args) => {
+	super(...args);
+}
+```
+
+为此我们创建了一个包装组件 Provider，用于将 store 转化到 context 上。
+
+```javascript
+import { Component } from 'react'
+import PropTypes from 'prop-types'
+
+class Provider extends Component {
+
+  getChildContext() {
+    return {
+      store: this.props.store
+    }
+  }
+
+  render() {
+    return this.props.children
+  }
+
+}
+
+Provider.propTypes = {
+  store: PropTypes.object.isRequired
+}
+Provider.childContextTypes = {
+  store: PropTypes.object
+}
+
+export default Provider
+```
+
+这个组件做的唯一的是就是将 store 通过从传入的 props 中转化为 context 的属性，其它并没有任何修改，另外需要设置 ```Provider.childContextTypes```，否则可能无法生效。
+
+```javascript
+import React from 'react'
+import { render } from 'react-dom'
+import Provider from './Provider'
+import ControlPanel from './views/ControlPanel'
+import store from './store'
+
+render(
+    <Provider store={ store } >
+        <ControlPanel />
+    </Provider>,
+    document.getElementById('root')
+)
+```
+
+将 store 从根引入，传递给 Provider 对象，转化成 ```this.context``` 属性，以后需要用到 store 数据的只要引用 ```this.context``` 即可而不用再次引入 store 了。比如：Summary 组件
+
+```javascript
+class Summary extends Component {
+    constructor() {
+        super(...arguments)
+        this.state = this.getOwnState()
+    }
+    getOwnState = () => {
+        let total = 0
+        const state = this.context.store.getState()
+        for(let key in state) {
+            if(state.hasOwnProperty(key)) {
+                total += state[key]
+            }
+        }
+        return {
+            value: total
+        }
+    }
+    // ...
+}
+// 别忘了设置 contextTypes，否则无法引用到 context
+Summary.contextTypes = {
+    store: PropTypes.object
+}
+```
+
+另外一点是，我们将处理全局变量到局部变量的映射的逻辑跟视图组件耦合在了一起，不利于维护，我们应该将这其拆成两个部分：傻瓜组件和容器组件，
+
+傻瓜组件即一个纯函数组件，没有 React 生命周期的事件，通过 props 传递的值进行对视图进行渲染，如：
+
+```javascript
+const Counter = (props) => {
+    const { caption, onHandleClickChange, value } = props
+    return (
+        <div>
+            <input style={ buttonStyle } type='button' value='-' onClick={ () => onHandleClickChange(false) } />
+            <input style={ buttonStyle }  type='button' value='+' onClick={ () => onHandleClickChange(true) } />
+            <span> { caption } Count: { value } </span>
+        </div>
+    )
+}
+```
+
+任人摆布，别人传递什么值我就用什么值，而容器组件则将所有包含着全局变量到局部变量的映射的逻辑，有自己局部的 state，将自己局部的 state 转化为 props 传递给傻瓜组件进行渲染。
+
+```javascript
+class CounterContainer extends Component {
+
+	// ...
+    onCounterUpdate = () => {
+        this.setState(this.getOwnState())
+    }
+    
+    componentDidMount() {
+        this.context.store.subscribe(this.onCounterUpdate)
+    }
+    
+    render() {
+        return (
+            <Counter 
+                caption={ this.props.caption }
+                onHandleClickChange={ this.onHandleClickChange }
+                value={ this.state.value }
+             />
+        )
+    }
+}
+CounterContainer.contextTypes = {
+    store: PropTypes.object
+}
+```
+
+这样我们就将原本组件不同的部分给分离开来了，傻瓜组件仅专注于视图，容器专注处理数据同步的逻辑。改进后的 redux 例子可以通过：
+
+```
+cd controlpanel_with_redux_promoted/
+npm i 
+npm start
+```
+
+## 最终的 Redux 架构
 
 
