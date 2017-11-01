@@ -177,9 +177,9 @@ import controller from '../controller'
 export default class Counter extends Component {
     //...
     onHandleClickChange = (isIncrement) => {
-	    const { caption } = this.props
-	    let value = isIncrement ? this.state.value + 1 : this.state.value - 1
-	    controller.setCounterValue(caption, value)
+        const { caption } = this.props
+        let value = isIncrement ? this.state.value + 1 : this.state.value - 1
+        controller.setCounterValue(caption, value)
     }
 
     onCounterUpdate = () => {
@@ -343,7 +343,6 @@ const CounterStore = {
         return Object.keys(counterData)
     },
 }
-
 
 export default CounterStore
 ```
@@ -895,7 +894,7 @@ export default connect(mapStateToProps, mapDispatchToProps)(Counter);
 
 这样还不算完，我们需要做一些性能优化，比如说：我们增加了 First 计时器的值，按理说只有 First 这个组件进行重新 render 了，而现在由于三个 setState({}) 都会触发高阶组件重新进行 render，有点浪费性能，所以这时候 ```shouldComponentUpdate``` 这个钩子函数派上用场，它是通过判断现在值得跟之前的是否有变化，如果没有变化，返回 false 后就不会执行后面 render 函数，如果有变化，则交给后面的 render 函数进行 vdom 比较了。
 
-这里我么通过创建一个全局的 Map 来存储之前的值。
+这里我通过创建一个全局的 Map 来存储之前的值。
 
 ```javascript
 const map = new WeakMap()
