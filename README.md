@@ -57,7 +57,7 @@ npm i
 
 ```javascript
 export default class ControlPanel extends Component {
-	 //...
+    //...
     render() {
         return (
             <div>
@@ -564,7 +564,7 @@ import store from '../store'
 import actionCreator from '../actionCreator'
 
 export default class Counter extends Component {
-	 // ...
+    // ...
     getOwnState() {
         return {
             value: store.getState()[this.props.caption]
@@ -777,8 +777,7 @@ const Counter = (props) => {
 
 ```javascript
 class CounterContainer extends Component {
-
-	 // ...
+    // ...
     onCounterUpdate = () => {
         this.setState(this.getOwnState())
     }
@@ -1002,7 +1001,6 @@ npm start
 先来看一下目录结构:
 
 ```
-.
 ├── index.js
 ├── store
 │   ├── CounterStore
