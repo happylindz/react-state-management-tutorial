@@ -223,8 +223,8 @@ MVC 的缺陷：上述的 MVC(View、Model、Controller 是1:1:1的关系)只是
 ```javascript
 import controller from '../controller'
 export default class Counter extends Component {
-	//...
-	onHandleClickChange = (isIncrement) => {
+    //...
+    onHandleClickChange = (isIncrement) => {
         const { caption } = this.props
         let value = isIncrement ? this.state.value + 1 : this.state.value - 1
         controller.setCounterValue(caption, null)
@@ -431,10 +431,10 @@ Flux 缺点：
 const dispatcher = new Dispatcher()
 
 CounterStore.dispatchToken = dispatcher.register((action) => {
-	console.log(action);
-   	switch(action.type) {
-		//...
-   }
+    console.log(action);
+    switch(action.type) {
+        //...
+    }
 })
 ```
 
@@ -445,9 +445,9 @@ import logger from 'xxx-logger'
 const dispatcher = new Dispatcher({ plugins:[ logger ] }) // something like this
 
 CounterStore.dispatchToken = dispatcher.register((action) => {
-   	switch(action.type) {
-		//...
-   }
+    switch(action.type) {
+        //...
+    }
 })
 ```
 
