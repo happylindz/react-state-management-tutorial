@@ -642,8 +642,8 @@ const initValue = {}
 
 const store = createStore(
     reducer,
-    applyMiddleware(logger),
     initValue,
+    applyMiddleware(logger),
 );
 ```
 
